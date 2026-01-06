@@ -4,6 +4,8 @@ for /f %%i in ('powershell -NoProfile -Command "(hostname).ToLower()"') do set h
 set username=%hostname:css=uss%
 set toolnumber=%hostname:css01sth=%
 set toolnumber=%toolnumber:ts01=%
+set toolnumber=000%toolnumber%
+set toolnumber=%toolnumber:~-3%
 set password=sth@TS%toolnumber%
 
 cd /d C:\disk_ram_v2
