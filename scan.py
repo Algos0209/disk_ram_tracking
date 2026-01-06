@@ -133,8 +133,6 @@ class ScanManager:
         folder_path = f"C:\\{self.folder_name}"
         
         try:
-            self.winrm_logger.info(f"Attempting to create folder {folder_path} on {hostname}")
-            
             # Check if folder exists first
             check_cmd = f'if exist "{folder_path}" (echo TRUE) else (echo FALSE)'
             result = session.run_cmd(check_cmd)
@@ -142,7 +140,6 @@ class ScanManager:
             if result.status_code == 0:
                 output = result.std_out.decode().strip()
                 if "TRUE" in output:
-                    self.winrm_logger.info(f"Folder {folder_path} already exists on {hostname}, skipping creation")
                     return True, "Folder already exists"
                 
                 # Create folder with permissions
@@ -153,29 +150,24 @@ class ScanManager:
                 ]
                 
                 for cmd in create_commands:
-                    self.winrm_logger.debug(f"Running command on {hostname}: {cmd}")
                     result = session.run_cmd(cmd)
                     
                     if result.status_code != 0:
-                        error_output = result.std_err.decode() if result.std_err else "No error output"
-                        self.winrm_logger.warning(f"Command '{cmd}' failed on {hostname}. Status: {result.status_code}, Error: {error_output}")
-                        # Continue with other commands even if one fails
+                        self.logger.info(f"WinRM {hostname}: folder creation failed")
+                        return False, "Folder creation failed"
                 
                 # Verify folder was created
                 verify_result = session.run_cmd(check_cmd)
                 if verify_result.status_code == 0 and "TRUE" in verify_result.std_out.decode():
-                    self.winrm_logger.info(f"Successfully created folder {folder_path} on {hostname}")
+                    self.logger.info(f"WinRM {hostname}: folder created")
                     return True, "Folder created successfully"
                 else:
-                    self.winrm_logger.error(f"Failed to verify folder creation on {hostname}")
+                    self.logger.info(f"WinRM {hostname}: folder verification failed")
                     return False, "Folder creation verification failed"
             else:
-                error_output = result.std_err.decode() if result.std_err else "No error output"
-                self.winrm_logger.error(f"Failed to check folder existence on {hostname}: {error_output}")
                 return False, "Failed to check folder existence"
                 
         except Exception as e:
-            self.winrm_logger.error(f"Exception during folder creation on {hostname}: {str(e)}")
             return False, f"Exception: {str(e)}"
     
     def create_folder_ssh(self, ssh, hostname):
@@ -183,8 +175,6 @@ class ScanManager:
         folder_path = f"C:\\{self.folder_name}"
         
         try:
-            self.ssh_logger.info(f"Attempting to create folder {folder_path} on {hostname} via SSH")
-            
             # Check if folder exists first
             check_cmd = f'if exist "{folder_path}" (echo TRUE) else (echo FALSE)'
             stdin, stdout, stderr = ssh.exec_command(check_cmd, timeout=10)
@@ -193,7 +183,6 @@ class ScanManager:
             error = stderr.read().decode().strip()
             
             if output and "TRUE" in output:
-                self.ssh_logger.info(f"Folder {folder_path} already exists on {hostname}, skipping creation")
                 return True, "Folder already exists"
             
             # Create folder with permissions
@@ -205,19 +194,16 @@ class ScanManager:
             
             for cmd in create_commands:
                 try:
-                    self.ssh_logger.debug(f"Running SSH command on {hostname}: {cmd}")
                     stdin, stdout, stderr = ssh.exec_command(cmd, timeout=15)
                     
                     cmd_output = stdout.read().decode().strip()
                     cmd_error = stderr.read().decode().strip()
                     
                     if cmd_error:
-                        self.ssh_logger.warning(f"SSH command '{cmd}' had error on {hostname}: {cmd_error}")
-                    else:
-                        self.ssh_logger.debug(f"SSH command '{cmd}' output on {hostname}: {cmd_output}")
+                        self.logger.info(f"SSH {hostname}: folder creation failed")
+                        return False, "Folder creation failed"
                         
                 except Exception as e:
-                    self.ssh_logger.warning(f"SSH command '{cmd}' failed on {hostname}: {str(e)}")
                     continue
             
             # Verify folder was created
@@ -225,23 +211,19 @@ class ScanManager:
             verify_output = stdout.read().decode().strip()
             
             if verify_output and "TRUE" in verify_output:
-                self.ssh_logger.info(f"Successfully created folder {folder_path} on {hostname} via SSH")
+                self.logger.info(f"SSH {hostname}: folder created")
                 return True, "Folder created successfully"
             else:
-                self.ssh_logger.error(f"Failed to verify folder creation on {hostname} via SSH")
+                self.logger.info(f"SSH {hostname}: folder verification failed")
                 return False, "Folder creation verification failed"
                 
         except Exception as e:
-            self.ssh_logger.error(f"Exception during SSH folder creation on {hostname}: {str(e)}")
             return False, f"Exception: {str(e)}"
     
     def test_winrm_session(self, hostname, username, password):
         """Test WinRM connection and get platform info using batch only"""
         if not WINRM_AVAILABLE:
-            self.winrm_logger.warning("WinRM library not available")
             return False, None, None
-        
-        self.winrm_logger.info(f"Testing WinRM connection to {hostname} with user {username}")
         
         try:
             # Create WinRM session
@@ -250,32 +232,26 @@ class ScanManager:
                 auth=(username, password),
                 transport='ntlm'
             )
-            self.winrm_logger.debug(f"WinRM session created for {hostname}")
             
             # Try batch command to get OS info
             try:
-                self.winrm_logger.debug(f"Trying batch command on {hostname}")
                 result = session.run_cmd('echo %OS%')
                 
                 if result.status_code == 0:
                     platform_info = result.std_out.decode().strip()
                     if platform_info and platform_info != '%OS%':
-                        self.winrm_logger.info(f"WinRM Batch SUCCESS for {hostname}: {platform_info}")
+                        self.logger.info(f"WinRM {hostname}: connected")
                         
                         # Create folder after successful platform detection
                         folder_success, folder_message = self.create_folder_winrm(session, hostname)
                         
                         return True, platform_info, folder_message
-                else:
-                    error_output = result.std_err.decode() if result.std_err else "No error output"
-                    self.winrm_logger.error(f"Batch command failed for {hostname}. Status: {result.status_code}, Error: {error_output}")
             except Exception as e:
-                self.winrm_logger.error(f"Batch command error on {hostname}: {str(e)}")
+                pass
             
             return False, None, None
                 
         except Exception as e:
-            self.winrm_logger.error(f"WinRM connection failed for {hostname}: {type(e).__name__}: {str(e)}")
             return False, None, None
     
     def test_ssh_session(self, hostname, username, password):
