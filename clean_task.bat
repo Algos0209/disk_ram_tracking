@@ -9,7 +9,7 @@ for %%T in ("DiskRamMonitor_6AM" "DiskRamMonitor_12PM" "DiskRamMonitor_6PM" "Dis
 )
 
 REM Delete directories
-for %%D in ("C:\disk_ram_v21" "C:\disk_ram_v2") do (
+for %%D in ("C:\disk_ram_v21" "C:\disk_ram_v2" "C2:\disk_ram_v21" "C2:\disk_ram_v2") do (
     if exist %%D (
         rmdir /s /q %%D
     )
