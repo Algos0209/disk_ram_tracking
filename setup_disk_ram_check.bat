@@ -21,8 +21,8 @@ echo username: %username%
 echo toolnumber: %toolnumber%
 echo password: %password%
 
-net use B: \\ssfile1\spe_shared /user:uss\%username% %password%
-robocopy "B:\" "C:\disk_ram_v2" "disk_ram_check.bat" /R:3 /W:5
+net use B: \\{source} /user:%username% %password%
+robocopy B:\ C:\disk_ram_v2 disk_ram_check.bat
 net use B: /delete
 
 schtasks /create /tn "DiskRamMonitor" /sc hourly /mo 6 /st 00:00 /tr "C:\disk_ram_v2\disk_ram_check.bat" /ru %username% /f
