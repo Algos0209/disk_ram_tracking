@@ -254,7 +254,7 @@ class InstallManager:
         username = host_config['user']
         password = host_config['pwd']
         protocol = host_config['protocol']
-        
+    
         try:
             self.logger.info(f"Processing host: {hostname} via {protocol}")
             
